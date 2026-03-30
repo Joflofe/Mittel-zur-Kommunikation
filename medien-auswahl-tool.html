@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mittel zur Kommunikation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #7DB6F5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 2.5rem;
+      max-width: 660px;
+      width: 100%;
+      box-shadow: 0 6px 32px rgba(100,90,200,0.10);
+    }
+
+    /* Header */
+    .header { margin-bottom: 2rem; }
+    .header h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 0.3rem; }
+    .header p  { font-size: 14px; color: #888; }
+
+    /* Fortschritt */
+    .progress-track { height: 6px; background: #eee; border-radius: 3px; margin-bottom: 2rem; }
+    .progress-fill  { height: 6px; background: #9FFA39; border-radius: 3px; transition: width 0.4s ease; }
+
+    /* Frage */
+    .step-label    { font-size: 13px; color: #aaa; margin-bottom: 0.4rem; }
+    .question-text { font-size: 19px; font-weight: 600; color: #1a1a2e; margin-bottom: 1.5rem; line-height: 1.45; }
+
+    /* Antworten */
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn {
+      background: white;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 14px 18px;
+      text-align: left;
+      font-size: 15px;
+      color: #333;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    .option-btn:hover { background: #f0effd; border-color: #7F77DD; color: #3C3489; }
+
+    /* Ergebnis */
+    .result-section { margin-top: 0.5rem; }
+    .result-section h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 1.25rem; }
+
+    .media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+
+    .media-card {
+      border-radius: 14px;
+      padding: 1.1rem 1.2rem;
+      border: 1.5px solid transparent;
+    }
+    .media-card.best {
+      background: #edeafd;
+      border-color: #7F77DD;
+    }
+    .media-card.possible {
+      background: #f0faf5;
+      border-color: #5DCAA5;
+    }
+    .media-card.excluded {
+      background: #fafafa;
+      border-color: #e0e0e0;
+      opacity: 0.5;
+    }
+
+    .media-card .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.03em;
+    }
+    .best     .badge { background: #7F77DD; color: white; }
+    .possible .badge { background: #1D9E75; color: white; }
+    .excluded .badge { background: #ddd;    color: #999;  }
+
+    .media-card .media-name { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 0.3rem; }
+    .media-card .media-example { font-size: 13px; color: #999; margin-bottom: 0.5rem; }
+    .media-card .media-reason { font-size: 13px; color: #555; line-height: 1.5; }
+    .excluded .media-name,
+    .excluded .media-reason { color: #aaa; }
+    .summary-box {
+      background: #f9f8ff;
+      border: 1px solid #e0deff;
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+      font-size: 14px;
+      color: #555;
+      line-height: 1.7;
+      margin-bottom: 1.5rem;
+    }
+
+    .restart-btn {
+      background: #FC7049;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .restart-btn:hover { background: #FF4D1C; }
+
+    .back-btn {
+      background: white;
+      color: #888;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      margin-top: 1.25rem;
+      display: inline-block;
+    }
+    .back-btn:hover { border-color: #7F77DD; color: #3C3489; }
+ 
+    @media (max-width: 480px) {
+      .media-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="header">
+    <h1>Mittel zur Kommunikation</h1>
+    <p>Durch Beantwortung der Fragen werden mögliche Medienarten vorgeschlagen</p>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progress" style="width:0%"></div>
+  </div>
+
+  <div id="quiz-area"></div>
+
+</div>
+
+<script>
+
+// ═══════════════════════════════════════════════════════════════
+//  MEDIENARTEN – Grunddefinitionen
+//  Jede Medienart hat: name, beispiele, kurzbeschreibung
+// ═══════════════════════════════════════════════════════════════
+const MEDIA = {
+  primary:    { name: "Primäre Medien",    beispiel: "Sprache, Gestik, Mimik",        desc: "Direkte Kommunikation über den menschlichen Körper – kein technisches Gerät nötig." },
+  secondary:  { name: "Sekundäre Medien",  beispiel: "Buch, Zeitung, Plakat, Foto",   desc: "Sender braucht ein Hilfsmittel (z.B. Druck), Empfänger nicht." },
+  tertiary:   { name: "Tertiäre Medien",   beispiel: "Radio, TV, Telefon, CD",        desc: "Sender und Empfänger brauchen jeweils ein technisches Gerät." },
+  quaternary: { name: "Quartäre Medien",   beispiel: "Internet, Social Media, Apps",  desc: "Digital, vernetzt, interaktiv – Rollen von Sender und Empfänger können wechseln." }
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  FRAGEN
+//
+//  Jede Antwort hat ein "exclude"-Array: welche Medienarten
+//  werden durch diese Antwort AUSGESCHLOSSEN?
+//  Und ein optionales "prefer"-Array: welche werden BEVORZUGT?
+// ═══════════════════════════════════════════════════════════════
+const questions = [
+  {
+    text: "Wie groß ist deine Zielgruppe?",
+    options: [
+      { text: "Einzelne Personen oder kleine Gruppe (max ~10 Personen)",
+        exclude: [],            prefer: ["primary"] },
+      { text: "Eine mittlere Gruppe (z.B. ein Kurs, eine Gemeinde)",
+        exclude: ["primary"],   prefer: ["secondary", "tertiary"] },
+      { text: "Große Menschenmenge (hunderte bis millionen)",
+        exclude: ["primary"],   prefer: ["tertiary", "quaternary"] }
+    ]
+  },
+  {
+    text: "Muss die Kommunikation in Echtzeit stattfinden?",
+    options: [
+      { text: "Ja, Live-Interaktion ist wichtig",
+        exclude: ["secondary"], prefer: ["primary", "quaternary"] },
+      { text: "Nein, zeitversetzter Konsum ist in Ordnung",
+        exclude: [],            prefer: ["secondary", "tertiary", "quaternary"] },
+      { text: "Beides ist möglich",
+        exclude: [],            prefer: [] }
+    ]
+  },
+  {
+    text: "Sollen Empfänger aktiv reagieren oder interagieren können?",
+    options: [
+      { text: "Ja, Feedback und Interaktion ist zentral",
+        exclude: ["secondary", "tertiary"], prefer: ["primary", "quaternary"] },
+      { text: "Nein, es geht nur ums Empfangen / Konsumieren",
+        exclude: ["primary", "quaternary"], prefer: ["secondary", "tertiary"] },
+      { text: "Leichte Interaktion wäre schön, ist aber nicht nötig",
+        exclude: [],            prefer: ["quaternary"] }
+    ]
+  },
+  {
+    text: "Wie komplex oder umfangreich ist die Botschaft?",
+    options: [
+      { text: "Einfach und kurz – eine schnelle Info",
+        exclude: [],            prefer: ["primary", "secondary"] },
+      { text: "Mittel – braucht etwas Erklärung",
+        exclude: [],            prefer: ["secondary", "tertiary"] },
+      { text: "Komplex und vielschichtig – braucht Tiefe",
+        exclude: ["primary"],   prefer: ["secondary", "quaternary"] }
+    ]
+  },
+  {
+    text: "Soll der Inhalt dauerhaft verfügbar oder archivierbar sein?",
+    options: [
+      { text: "Ja, die Botschaft soll langfristig abrufbar bleiben",
+        exclude: ["primary"],   prefer: ["secondary", "quaternary"] },
+      { text: "Nein, der Moment selbst zählt",
+        exclude: [],            prefer: ["primary", "tertiary"] },
+      { text: "Wäre optional, ist aber kein Muss",
+        exclude: [],            prefer: [] }
+    ]
+  },
+  {
+    text: "In welcher Form soll der Inhalt vermittelt werden?",
+    options: [
+      { text: "Nur Text / Schrift",
+        exclude: ["primary", "tertiary"], prefer: ["secondary"] },
+      { text: "Bild, Grafik, Ton, Video",
+        exclude: ["secondary"], prefer: ["tertiary", "quaternary"] },
+      { text: "Als persönliches Erlebnis / Performance",
+        exclude: ["secondary", "tertiary", "quaternary"], prefer: ["primary"] },
+      { text: "Alles kombinierbar – multimedial",
+        exclude: [],            prefer: ["quaternary"] }
+    ]
+  },
+  {
+    text: "Wie wichtig ist räumliche Nähe zwischen Sender und Empfänger?",
+    options: [
+      { text: "Sehr wichtig – wir sind am selben Ort",
+        exclude: ["tertiary", "quaternary"], prefer: ["primary"] },
+      { text: "Nicht wichtig – räumliche Distanz ist kein Problem",
+        exclude: ["primary"],   prefer: ["secondary", "tertiary", "quaternary"] },
+      { text: "Flexibel – beides sollte funktionieren",
+        exclude: [],            prefer: ["quaternary"] }
+    ]
+  },
+  {
+    text: "Soll die Zielgruppe die Inhalte weiterteilen können?",
+    options: [
+      { text: "Ja, Teilbarkeit und Verbreitung ist wichtig",
+        exclude: ["primary"],   prefer: ["quaternary", "secondary"] },
+      { text: "Nein, der Inhalt ist nicht zum Weiterteilen gedacht",
+        exclude: [],            prefer: ["primary", "tertiary"] },
+      { text: "Wäre ein Bonus, ist aber nicht das Kernziel",
+        exclude: [],            prefer: [] }
+    ]
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  LOGIK – nichts hier ändern, außer du weißt was du tust
+// ═══════════════════════════════════════════════════════════════
+let current = 0;
+let excluded = new Set();
+let preferCounts = { primary: 0, secondary: 0, tertiary: 0, quaternary: 0 };
+let reasons = { primary: [], secondary: [], tertiary: [], quaternary: [] };
+let history = []; // Verlauf für Zurück-Button
+ 
+function renderQuestion() {
+  const q = questions[current];
+  const pct = (current / questions.length) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+ 
+  const backBtn = current > 0
+    ? `<button class="back-btn" onclick="goBack()">← Zurück</button>`
+    : '';
+ 
+  document.getElementById('quiz-area').innerHTML = `
+    <div class="step-label">Frage ${current + 1} von ${questions.length}</div>
+    <div class="question-text">${q.text}</div>
+    <div class="options">
+      ${q.options.map((o, i) => `
+        <button class="option-btn" onclick="answer(${i})">${o.text}</button>
+      `).join('')}
+    </div>
+    ${backBtn}
+  `;
+}
+ 
+function goBack() {
+  if (history.length === 0) return;
+  const prev = history.pop();
+  current = prev.current;
+  excluded = new Set(prev.excluded);
+  preferCounts = { ...prev.preferCounts };
+  reasons = {
+    primary: [...prev.reasons.primary],
+    secondary: [...prev.reasons.secondary],
+    tertiary: [...prev.reasons.tertiary],
+    quaternary: [...prev.reasons.quaternary]
+  };
+  renderQuestion();
+}
+ 
+function answer(i) {
+  const q = questions[current];
+  const opt = q.options[i];
+ 
+  // Zustand vor dieser Antwort speichern
+  history.push({
+    current,
+    excluded: new Set(excluded),
+    preferCounts: { ...preferCounts },
+    reasons: {
+      primary: [...reasons.primary],
+      secondary: [...reasons.secondary],
+      tertiary: [...reasons.tertiary],
+      quaternary: [...reasons.quaternary]
+    }
+  });
+ 
+  // Ausschlüsse registrieren
+  opt.exclude.forEach(m => {
+    excluded.add(m);
+    reasons[m].push(`„${q.text}" → ${opt.text}`);
+  });
+ 
+  // Bevorzugungen zählen
+  opt.prefer.forEach(m => {
+    preferCounts[m]++;
+  });
+ 
+  current++;
+  if (current < questions.length) {
+    renderQuestion();
+  } else {
+    showResult();
+  }
+}
+ 
+function showResult() {
+  document.getElementById('progress').style.width = '100%';
+ 
+  // Verfügbare Medien (nicht ausgeschlossen)
+  const available = Object.keys(MEDIA).filter(m => !excluded.has(m));
+ 
+  // Beste = höchste preferCounts unter verfügbaren
+  const maxPref = Math.max(...available.map(m => preferCounts[m]));
+  const best = available.filter(m => preferCounts[m] === maxPref);
+  const possible = available.filter(m => preferCounts[m] < maxPref);
+  const excl = Object.keys(MEDIA).filter(m => excluded.has(m));
+ 
+  // Zusammenfassung
+  let summaryText = '';
+  if (available.length === 0) {
+    summaryText = 'Aufgrund der gewählten Kriterien konnten keine Medienarten eindeutig empfohlen werden. Überlege, ob einzelne Kriterien flexibler gesetzt werden können.';
+  } else {
+    summaryText = `Für dein Projekt ${best.length === 1 ? 'empfiehlt sich besonders' : 'empfehlen sich besonders'} <strong>${best.map(m => MEDIA[m].name).join(' und ')}</strong>.`;
+    if (possible.length > 0) summaryText += ` Auch ${possible.map(m => MEDIA[m].name).join(' und ')} ${possible.length === 1 ? 'ist' : 'sind'} möglich.`;
+    if (excl.length > 0) summaryText += ` ${excl.map(m => MEDIA[m].name).join(' und ')} ${excl.length === 1 ? 'wurde' : 'wurden'} aufgrund deiner Antworten ausgeschlossen.`;
+  }
+ 
+  function cardHTML(key, status) {
+    const m = MEDIA[key];
+    let badgeLabel = status === 'best' ? '★ Bevorzugt' : status === 'possible' ? '✓ Möglich' : '✗ Ausgeschlossen';
+    let reasonText = '';
+    if (status === 'excluded' && reasons[key].length > 0) {
+      reasonText = `<div class="media-reason">Ausgeschlossen weil: ${reasons[key][0]}</div>`;
+    } else {
+      reasonText = `<div class="media-reason">${m.desc}</div>`;
+    }
+    return `
+      <div class="media-card ${status}">
+        <span class="badge">${badgeLabel}</span>
+        <div class="media-name">${m.name}</div>
+        <div class="media-example">${m.beispiel}</div>
+        ${reasonText}
+      </div>
+    `;
+  }
+ 
+  const allCards = [
+    ...best.map(m => cardHTML(m, 'best')),
+    ...possible.map(m => cardHTML(m, 'possible')),
+    ...excl.map(m => cardHTML(m, 'excluded'))
+  ].join('');
+ 
+  document.getElementById('quiz-area').innerHTML = `
+    <div class="result-section">
+      <h2>Dein Ergebnis</h2>
+      <div class="summary-box">${summaryText}</div>
+      <div class="media-grid">${allCards}</div>
+      <button class="restart-btn" onclick="restart()">Nochmal starten</button>
+    </div>
+  `;
+}
+ 
+function restart() {
+  current = 0;
+  excluded = new Set();
+  preferCounts = { primary: 0, secondary: 0, tertiary: 0, quaternary: 0 };
+  reasons = { primary: [], secondary: [], tertiary: [], quaternary: [] };
+  history = [];
+  renderQuestion();
+}
+ 
+renderQuestion();
+</script>
+</body>
+</html>
+ 
